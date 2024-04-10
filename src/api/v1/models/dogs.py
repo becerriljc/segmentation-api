@@ -3,9 +3,10 @@ import io
 from PIL import Image, ImageDraw
 import tensorflow as tf
 from fastapi.responses import StreamingResponse
-from tensorflow.keras.models import load_model
+import os
 
-model = load_model("../artificial_intelligence_model/model")
+model_path = 'src/api/v1/models/ai'
+model = tf.keras.models.load_model(model_path)
 
 def model_predict(image: Image.Image) -> np.ndarray:
     # Placeholder for your model's prediction logic

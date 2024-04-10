@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------------------------------------------#
 #                                                 Libraries                                                   #
 # ------------------------------------------------------------------------------------------------------------#
-
+import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,12 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 #                                                Dependencies                                                 #
 # ------------------------------------------------------------------------------------------------------------#
 
-from dependencies import get_auth_header
+from .dependencies import get_auth_header
 
 # ------------------------------------------------------------------------------------------------------------#
 #                                                    Routes                                                   #
 # ------------------------------------------------------------------------------------------------------------#
-from routes import dogs
+from .routes.dogs import router as routerDogs
 
 # ------------------------------------------------------------------------------------------------------------#
 #                                          Constants and Variables                                            #
@@ -39,7 +39,11 @@ app.add_middleware(
 )
 
 app.include_router(
-    dogs.router,
+    routerDogs,
     prefix=baseUrl,
     tags=['segmentation'],
 )
+
+if __name__ == "__main__":
+    # Use Uvicorn to serve the application
+    uvicorn.run(app, host="0.0.0.0", port=8000)
