@@ -5,7 +5,7 @@ import tensorflow as tf
 from fastapi.responses import StreamingResponse
 import os
 
-model_path = 'src/api/v1/models/ai'
+model_path = 'src/api/v1/models/model.keras'
 model = tf.keras.models.load_model(model_path)
 
 def model_predict(image: Image.Image) -> np.ndarray:
