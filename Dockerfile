@@ -1,5 +1,5 @@
 # Use an official TensorFlow runtime as a parent image (Python 3.11, CPU version)
-FROM tensorflow/tensorflow:2.16.1
+FROM tensorflow/tensorflow:2.15.0
 
 # Set the working directory in the container
 
