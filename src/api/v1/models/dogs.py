@@ -1,6 +1,6 @@
 import numpy as np
 import io
-from PIL import Image, ImageDraw
+from PIL import Image
 import tensorflow as tf
 from fastapi.responses import StreamingResponse
 import os
@@ -8,46 +8,51 @@ import os
 model_path = 'src/api/v1/models/model.keras'
 model = tf.keras.models.load_model(model_path)
 
-def model_predict(image: Image.Image) -> np.ndarray:
-    # Placeholder for your model's prediction logic
-    # Let's pretend we're detecting a single object and returning its bounding box
-    # Returning a dummy bounding box: [x_min, y_min, x_max, y_max]
-    prediction = model.predict(image)
-    print(prediction)
+def preprocess_image(image_file):
+    image = Image.open(image_file).convert('RGB')
+    image = image.resize((160, 160))  # Resize to the input size expected by your model
+    image_array = np.array(image)
+    image_array = np.expand_dims(image_array, axis=0) / 255.0  # Normalize if your model expects this
+    return image_array
 
-    return np.array([50, 50, 200, 200])
+def create_image_from_mask(prediction):
+    try:
+        # Convert RGB numpy array to a PIL image
+        image = Image.fromarray(prediction.astype('uint8'), 'RGB')
 
-def process_image(image: Image.Image, prediction: np.ndarray) -> Image.Image:
-    # Use the prediction to modify the image
-    # For example, draw a bounding box around a detected object
-    draw = ImageDraw.Draw(image)
-    draw.rectangle(prediction.tolist(), outline="red", width=3)
-    return image
+        # Convert RGB image to Grayscale
+        gray_image = image.convert('L')
 
-async def get_image_filtered(image):
-    image_data = await image.read()
-    image = Image.open(io.BytesIO(image_data))
+        # Convert grayscale image to numpy array
+        gray_array = np.array(gray_image)
 
-    # Process the image - adjust depending on your model's input requirements
-    image = image.resize((224, 224))  # Example resize, change to match your model's expected input shape
-    image_array = np.asarray(image)
-    image_array = np.expand_dims(image_array, axis=0)  # Model expects a batch of images
+        # Apply threshold to create a binary mask
+        # You might need to adjust the threshold value based on your specific case
+        mask = (gray_array > 128).astype(np.uint8) * 255  # Example threshold of 128
 
-    # Normalize the image data to 0-1 range if your model expects that
-    image_array = image_array / 255.0
+        # Convert the binary mask back to a PIL image
+        mask_image = Image.fromarray(mask, mode='L')
+        return mask_image
+    except Exception as e:
+        print('create_image_from_mask :: error: {}'.format(e))
 
-    # Predict
-    # Perform model prediction
-    prediction = model_predict(image)
+        raise Exception('Error al crear la imagen mascara')
 
-    # Modify the image based on the prediction
-    transformed_image = process_image(image, prediction)
+async def get_image_filtered(file):
+    try:
+        image_data = await file.read()
+        image_array = preprocess_image(io.BytesIO(image_data))
+        prediction = model.predict(image_array)
+        mask_image = create_image_from_mask(prediction[0])  # Assuming batch size 1
 
-    # Convert the PIL image back to bytes to return it
-    img_byte_arr = io.BytesIO()
-    transformed_image.save(img_byte_arr, format='JPEG')  # Adjust the format as needed
-    img_byte_arr.seek(0)  # Go to the start of the BytesIO object
+        print('INFO :: get_image_filtered :: mask_image: {}'.format(mask_image))
 
-    # Create a StreamingResponse to return the image
-    return StreamingResponse(img_byte_arr, media_type="image/jpeg")
+        # Save the PIL image to a BytesIO object and return it as a StreamingResponse
+        img_io = io.BytesIO()
+        mask_image.save(img_io, 'JPEG')
+        img_io.seek(0)
+        return StreamingResponse(img_io, media_type='image/jpeg')
+    except Exception as e:
+        print('get_image_filtered :: error: {}'.format(e))
 
+        raise Exception('Error al procesar la imagen')
